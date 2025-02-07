@@ -4,6 +4,7 @@
 import bpy
 import bmesh
 import math
+import numpy as np
 
 from enum import Enum
 from typing import List, Set, Dict, Tuple
@@ -82,7 +83,7 @@ def model_to_mesh_object(model: Model, scene : Scene, materials_map : Dict[str, 
                 vertex_colors.extend(segment.colors)
             elif geometry_has_colors:
                 [vertex_colors.extend([0.0, 0.0, 0.0, 1.0]) for _ in range(len(segment.positions))]
-            
+
             if segment.weights:
                 vertex_weights_offsets[polygon_index_offset] = segment.weights
 
@@ -118,7 +119,7 @@ def model_to_mesh_object(model: Model, scene : Scene, materials_map : Dict[str, 
         blender_mesh.vertices.add(len(vertex_positions))
         blender_mesh.vertices.foreach_set("co", [component for vertex_position in vertex_positions for component in vertex_position])
 
-        # LOOPS 
+        # LOOPS
 
         flat_indices = [index for polygon in polygons for index in polygon]
 
@@ -128,8 +129,25 @@ def model_to_mesh_object(model: Model, scene : Scene, materials_map : Dict[str, 
         blender_mesh.loops.foreach_set("vertex_index", flat_indices)
 
         # Normals
-        blender_mesh.create_normals_split()
-        blender_mesh.loops.foreach_set("normal", [component for i in flat_indices for component in vertex_normals[i]])
+
+        # Assuming 'blender_mesh' is your mesh object
+
+
+        # Ensure the mesh has the necessary data
+        blender_mesh.calc_normals_split()
+
+        # Prepare an array to hold the custom normals
+        custom_normals = np.zeros((len(blender_mesh.loops), 3), dtype=np.float32)
+
+        # Populate the custom_normals array
+        for loop_index, vertex_index in enumerate(flat_indices):
+            custom_normals[loop_index] = vertex_normals[vertex_index]
+
+        # Set the custom split normals
+        blender_mesh.normals_split_custom_set(custom_normals)
+
+        # Update the mesh to apply changes
+        blender_mesh.update()
 
         # UVs
         blender_mesh.uv_layers.new(do_init=False)
@@ -150,7 +168,7 @@ def model_to_mesh_object(model: Model, scene : Scene, materials_map : Dict[str, 
         current_polygon_start_index = 0
 
         # Number of loops in this polygon.  Polygon i will use
-        # loops from polygon_loop_start_indices[i] to 
+        # loops from polygon_loop_start_indices[i] to
         # polygon_loop_start_indices[i] + polygon_loop_totals[i]
         polygon_loop_totals = []
 
@@ -167,7 +185,7 @@ def model_to_mesh_object(model: Model, scene : Scene, materials_map : Dict[str, 
         blender_mesh.polygons.foreach_set("material_index", polygon_material_indices)
         blender_mesh.polygons.foreach_set("use_smooth", [True for _ in polygons])
 
-        blender_mesh.validate(clean_customdata=False) 
+        blender_mesh.validate(clean_customdata=False)
         blender_mesh.update()
 
 
